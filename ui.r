@@ -7,13 +7,16 @@ shinyUI(pageWithSidebar(
   
   sidebarPanel(
     fileInput('file','Choose Text File in Standard SCHARP Format',accept = c('text/csv','.csv')),
-    uiOutput('colnames')
+    uiOutput('antigens'),
+    actionButton("run","Run MIMOSA")
+    
     ),
   
   mainPanel(    
     tabsetPanel(
         tabPanel('Data',
-          dataTableOutput('data')
+          dataTableOutput('data'),
+          plotOutput("plot")
           ),
         tabPanel('Debug',
           textOutput("debugtext")
