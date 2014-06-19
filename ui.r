@@ -8,6 +8,7 @@ shinyUI(pageWithSidebar(
   sidebarPanel(
     fileInput('file','Choose Text File in Standard SCHARP Format',accept = c('text/csv','.csv')),
     uiOutput('antigens'),
+    uiOutput('cytokines'),
     actionButton("run","Run MIMOSA")
     
     ),
