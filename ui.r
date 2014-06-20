@@ -9,20 +9,26 @@ shinyUI(pageWithSidebar(
     fileInput('file','Choose Text File in Standard SCHARP Format',accept = c('text/csv','.csv')),
     uiOutput('antigens'),
     uiOutput('cytokines'),
+    uiOutput('visitnos'),
+    uiOutput('tcellsubs'),
+    
     actionButton("run","Run MIMOSA")
     
-    ),
+  ),
   
   mainPanel(    
     tabsetPanel(
-        tabPanel('Data',
-          dataTableOutput('data'),
-          plotOutput("plot")
-          ),
-        tabPanel('Debug',
-          textOutput("debugtext")
-        )
+      tabPanel('Data',
+               dataTableOutput('data'),
+               #
+               textOutput("selected"),
+               plotOutput("plot")
+      ),
+      tabPanel('Debug',
+               textOutput("debugtext")
       )
-      
+    )
+    
   )
 ))
+
