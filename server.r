@@ -106,8 +106,8 @@ shinyServer(function(input, output) {
                           & rvalues$data$tcellsub == input$tcellsubs])
     }
     else if(input$tcellsubs == "-----"){
-      rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines
-                   & rvalues$data$visitno == input$visitnos]
+      return(rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines
+                   & rvalues$data$visitno == input$visitnos])
     }
     rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines & rvalues$data$visitno == input$visitnos & rvalues$data$tcellsub == input$tcellsubs]
   }
