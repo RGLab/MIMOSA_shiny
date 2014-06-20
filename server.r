@@ -4,8 +4,9 @@ require(MIMOSA)
 require(ggplot2)
 require(data.table)
 
-
-rvalues<-reactiveValues(data=NULL,antigens=NULL,colclasses=NULL,eset=NULL,result=NULL)
+#set rvalues to null initially
+rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, colclasses=NULL,eset=NULL,result=NULL)
+#hardcoded columns?
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 
 measure.columns=c("nsub","cytnum")
@@ -14,12 +15,14 @@ default.cast.formula=component~assayid+ptid+visitno+tcellsub+cytokine+antigen
 featureCols=1
 ref.append.replace="_neg"
 
+
 shinyServer(function(input, output) {
   file=reactive({
     input$file
   })
   
-  output$data = renderDataTable({
+  #read in file and set file to rvalues$data
+  observe({
     if(is.null(file())){
       return(NULL)
     }
@@ -36,9 +39,29 @@ shinyServer(function(input, output) {
                                                .variables = .variable,
                                                featureCols=featureCols,
                                                ref.append.replace = ref.append.replace)
+  })
+  
+  output$data = renderDataTable({
+    if(is.null(rvalues$data)){
+      return(NULL)
+    }
     
-    rvalues$data
-  },options=list(iDisplayLength=10))
+    #filter rvalues$data for antigens and cytokines
+    if(is.null(input$antigens)&is.null(input$cytokines)){
+      return(rvalues$data)
+    }
+    if(is.null(input$antigens)){
+      return(rvalues$data[rvalues$data$cytokine == input$cytokines])
+    }
+    if(is.null(input$cytokines)){
+      return(rvalues$data[rvalues$data$antigen == input$antigens])
+    }
+    rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines ]
+    
+    
+  }
+  ,options=list(iDisplayLength=10)
+  )
   
   observe({
     if(!is.null(rvalues$data)){
@@ -65,22 +88,16 @@ shinyServer(function(input, output) {
       selectInput('cytokines','Cytokines',cytokines)
     })
   })
-  #   #   filterants<-reactive({input$antigens})
-  #   #   filtercyto<-reactive({input$cytokines})
-  #   observe({if(!is.null(input$antigens)){
-  #     print(reactive({input$antigens}))
-  #   }})
-  
   
   
   output$debugtext<-renderPrint({
     if(is.null(file())){
       return(NULL)
     }
-    ant<-input$antigens
     rvalues$result<-MIMOSA(data = rvalues$eset,formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub,method="EM",subset=RefTreat%in%"Treatment"&antigen%in%"CMV"&cytokine%in%"IL2+"&visitno%in%"10",ref=RefTreat%in%"Reference"&antigen%in%"CMV"&cytokine%in%"IL2+"&visitno%in%"10")
     sprintf("%s done", input$run[1])
   })
+  
   observe({
     output$plot<-renderPlot({
       if(!is.null(rvalues$result)){
@@ -88,4 +105,3 @@ shinyServer(function(input, output) {
       }
     })
   })
-})
