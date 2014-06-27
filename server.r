@@ -5,7 +5,8 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, colclasses=NULL,eset=NULL,result=NULL)
+rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+
 #hardcoded columns?
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 
@@ -49,6 +50,7 @@ shinyServer(function(input, output) {
     if(is.null(rvalues$data)){
       return(NULL)
     }
+    
     #filter rvalues$data for dropdown input
     #terrible ugly looking chunk of if statements
     if(is.null(input$antigens)|is.null(input$cytokines)|is.null(input$visitnos)|is.null(input$tcellsubs)){
@@ -107,7 +109,7 @@ shinyServer(function(input, output) {
     }
     else if(input$tcellsubs == "-----"){
       return(rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines
-                   & rvalues$data$visitno == input$visitnos])
+                          & rvalues$data$visitno == input$visitnos])
     }
     rvalues$data[rvalues$data$antigen == input$antigens & rvalues$data$cytokine == input$cytokines & rvalues$data$visitno == input$visitnos & rvalues$data$tcellsub == input$tcellsubs]
   }
@@ -169,6 +171,37 @@ shinyServer(function(input, output) {
     output$plot<-renderPlot({
       if(!is.null(rvalues$result)){
         volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var=~tcellsub)
+      }
+    })
+    #     output$countsdata<-renderDataTable({
+    #       if(!is.null(rvalues$result)){
+    #         countsTable(rvalues$result)
+    #       }
+    #     })
+    
+    output$dftable<-renderDataTable({
+      if(!is.null(rvalues$result) & !is.null(rvalues$threshold)){
+        x<- rvalues$result
+        q <- -log10(unlist(fdr(x), use.names = FALSE))
+        pspu <- countsTable(x, proportion = TRUE)
+        p.stim <- getZ(x)
+        pd <- pData(x)
+        fdrtable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
+        fdrtable
+      }
+    })
+    
+    output$boxplot<- renderPlot({
+      if(!is.null(rvalues$result)){
+        x<- rvalues$result
+        q <- -log10(unlist(fdr(x), use.names = FALSE))
+        pspu <- countsTable(x, proportion = TRUE)
+        p.stim <- getZ(x)
+        pd <- pData(x)
+        plottable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
+        #factor should be visitno
+        p <- ggplot(plottable, aes(factor(visitno), Pr.response- Pr.Nonresponse)) + geom_boxplot() + geom_jitter()
+        p
       }
     })
   })
