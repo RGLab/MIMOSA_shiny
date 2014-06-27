@@ -20,9 +20,16 @@ shinyUI(pageWithSidebar(
     tabsetPanel(
       tabPanel('Data',
                dataTableOutput('data'),
-               #
                textOutput("selected"),
                plotOutput("plot")
+      ),
+      tabPanel('FDR',
+               #                dataTableOutput('countsdata'),
+               sliderInput("threshold", "Threshold:", 
+                           min = 0, max = 1, value = 0.1, step= 0.05),
+               
+               dataTableOutput('dftable'),
+               plotOutput('boxplot')
       ),
       tabPanel('Debug',
                textOutput("debugtext")
