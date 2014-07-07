@@ -12,7 +12,7 @@ shinyUI(pageWithSidebar(
     uiOutput('visitnos'),
     uiOutput('tcellsubs'),
     
-    actionButton("run","Run MIMOSA")
+    actionButton("run","Update with filtered data")
     
   ),
   
@@ -29,7 +29,12 @@ shinyUI(pageWithSidebar(
                            min = 0, max = 1, value = 0.1, step= 0.05),
                
                dataTableOutput('dftable'),
-               plotOutput('boxplot')
+               plotOutput('boxplot'),
+               uiOutput('xvars1'),
+               uiOutput('xvars2'),
+               uiOutput('yvars1'),
+               uiOutput('yvars2')
+  
       ),
       tabPanel('Debug',
                textOutput("debugtext")
