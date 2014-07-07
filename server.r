@@ -5,11 +5,12 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
-
+rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+rvdata_varnames = c("antigen", "cytokine", "tcellsub", "visitno")
 #hardcoded columns?
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
-
+#selected facet_vars
+facet_vars <- list(x1 = NULL, y1 = NULL, x2 = NULL, y2 = NULL)
 measure.columns=c("nsub","cytnum")
 default.cast.formula=component~assayid+ptid+visitno+tcellsub+cytokine+antigen
 .variable=quote(.(assayid,ptid,visitno,tcellsub,cytokine,antigen))
@@ -123,6 +124,7 @@ shinyServer(function(input, output) {
       rvalues$cytokines<-levels(factor(rvalues$data$cytokine))
       rvalues$visitnos<-levels(factor(rvalues$data$visitno))
       rvalues$tcellsubs<-levels(factor(rvalues$data$tcellsub))
+      
     }
   })
   
@@ -158,6 +160,30 @@ shinyServer(function(input, output) {
     })
   })
   
+  observe({
+    output$xvars1<-renderUI({
+      x1choices <- rvdata_varnames[rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars1 & rvdata_varnames != input$yvars2]
+      selectInput('xvars1', 'X variable', c("-----", x1choices), selected = input$xvars1)
+    })
+  })
+  observe({
+    output$xvars2<-renderUI({
+      selectInput('xvars2', 'X variable', c("-----", rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$yvars1 & rvdata_varnames != input$yvars2]), selected = input$xvars2)
+    })
+  })
+  observe({
+    output$yvars1<-renderUI({
+      selectInput('yvars1', 'Y variable', c("-----", rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars2]), selected = input$yvars1)
+    })
+  })
+  observe({
+    output$yvars2<-renderUI({
+      y2choices <- rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars1]
+      selectInput('yvars2', 'Y variable', c("-----", y2choices), selected = input$yvars2)
+    })
+  })
+  
+  
   #printing to debug tab
   output$debugtext<-renderPrint({
     if(is.null(file())){
@@ -173,11 +199,6 @@ shinyServer(function(input, output) {
         volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var=~tcellsub)
       }
     })
-    #     output$countsdata<-renderDataTable({
-    #       if(!is.null(rvalues$result)){
-    #         countsTable(rvalues$result)
-    #       }
-    #     })
     
     output$dftable<-renderDataTable({
       if(!is.null(rvalues$result) & !is.null(rvalues$threshold)){
@@ -199,9 +220,34 @@ shinyServer(function(input, output) {
         p.stim <- getZ(x)
         pd <- pData(x)
         plottable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
-        #factor should be visitno
-        p <- ggplot(plottable, aes(factor(visitno), Pr.response- Pr.Nonresponse)) + geom_boxplot() + geom_jitter()
+
+#         if(!is.null(input$xvars1)){
+#           print(input$xvars1)
+#           browser()
+#           p<- ggplot(plottable, aes(input$xvars1,cytnum-cytnum_REF)) + geom_boxplot(aes(input$xvars1, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(. ~ input$xvars1)
+#           p
+#         }
+        p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(. ~ tcellsub)
         p
+        #factor should be visitno
+        
+        
+        #trying to get user input for panels, Axis label not changing
+        
+        #         if(!is.null(input$xvars1)){
+        #         p <-ggplot(plottable, aes(input$xvars1, cytnum-cytnum_REF))
+        #         + geom_boxplot(aes(input$xvars1, cytnum-cytnum_REF),data=subset(plottable, signif.fdr))  
+        #         + geom_jitter(aes(colour = signif.fdr)) 
+        #         + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) 
+        #         + facet_grid(. ~ input$xvars1)
+        #         p
+        #         }
+        #         p <-ggplot(plottable, aes(visitno, cytnum-cytnum_REF)) 
+        #         + geom_boxplot(aes(visitno, cytnum-cytnum_REF),data=subset(plottable, signif.fdr))  
+        #         + geom_jitter(aes(colour = signif.fdr)) 
+        #         + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) 
+        #         + facet_grid(. ~ visitno)
+        #         p
       }
     })
   })
