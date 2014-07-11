@@ -160,26 +160,17 @@ shinyServer(function(input, output) {
     })
   })
   
+  
   observe({
     output$xvars1<-renderUI({
-      x1choices <- rvdata_varnames[rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars1 & rvdata_varnames != input$yvars2]
-      selectInput('xvars1', 'X variable', c("-----", x1choices), selected = input$xvars1)
-    })
-  })
-  observe({
-    output$xvars2<-renderUI({
-      selectInput('xvars2', 'X variable', c("-----", rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$yvars1 & rvdata_varnames != input$yvars2]), selected = input$xvars2)
+      x1choices <- setdiff(rvdata_varnames, input$yvars1)
+      selectInput('xvars1', 'X variable', c(".", x1choices), selected = c(".", input$xvars1), multiple = TRUE)
     })
   })
   observe({
     output$yvars1<-renderUI({
-      selectInput('yvars1', 'Y variable', c("-----", rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars2]), selected = input$yvars1)
-    })
-  })
-  observe({
-    output$yvars2<-renderUI({
-      y2choices <- rvdata_varnames[rvdata_varnames != input$xvars1 & rvdata_varnames != input$xvars2 & rvdata_varnames != input$yvars1]
-      selectInput('yvars2', 'Y variable', c("-----", y2choices), selected = input$yvars2)
+      y1choices <- setdiff(rvdata_varnames, input$xvars1)
+      selectInput('yvars1', 'Y variable', c( ".", y1choices), selected = c(".", input$yvars1), multiple = TRUE)
     })
   })
   
@@ -220,34 +211,45 @@ shinyServer(function(input, output) {
         p.stim <- getZ(x)
         pd <- pData(x)
         plottable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
-
-#         if(!is.null(input$xvars1)){
-#           print(input$xvars1)
-#           browser()
-#           p<- ggplot(plottable, aes(input$xvars1,cytnum-cytnum_REF)) + geom_boxplot(aes(input$xvars1, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(. ~ input$xvars1)
-#           p
-#         }
-        p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(. ~ tcellsub)
+        
+        
+        
+        #ADDPLUS function here
+        addplus <- function(input){
+          size<- length(input)
+          if(size== 1){
+            return(input)
+          }
+          retval<- input[1]
+          for(i in 2:size){
+            retval <- paste(retval, " + ", input[i])
+          }
+          return(retval)
+        }
+        
+        
+          if(length(input$xvars1) != 1 & length(input$yvars1) == 1){
+          facetformula<- as.formula(paste(". ~", addplus(input$xvars1)))
+          
+          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          return(p)
+          }
+        if(length(input$xvars1) != 1 & length(input$yvars1) != 1){
+          facetformula<- as.formula(paste(addplus(input$yvars1), " ~", addplus(input$xvars1)))
+          
+          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          return(p)
+        }
+        if(length(input$xvars1)==1 & length(input$yvars1) != 1){
+          facetformula<- as.formula(paste(addplus(input$yvars1), " ~ ."))
+          
+          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          return(p)
+        }
+          
+          
+        p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr))
         p
-        #factor should be visitno
-        
-        
-        #trying to get user input for panels, Axis label not changing
-        
-        #         if(!is.null(input$xvars1)){
-        #         p <-ggplot(plottable, aes(input$xvars1, cytnum-cytnum_REF))
-        #         + geom_boxplot(aes(input$xvars1, cytnum-cytnum_REF),data=subset(plottable, signif.fdr))  
-        #         + geom_jitter(aes(colour = signif.fdr)) 
-        #         + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) 
-        #         + facet_grid(. ~ input$xvars1)
-        #         p
-        #         }
-        #         p <-ggplot(plottable, aes(visitno, cytnum-cytnum_REF)) 
-        #         + geom_boxplot(aes(visitno, cytnum-cytnum_REF),data=subset(plottable, signif.fdr))  
-        #         + geom_jitter(aes(colour = signif.fdr)) 
-        #         + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) 
-        #         + facet_grid(. ~ visitno)
-        #         p
       }
     })
   })
