@@ -12,7 +12,9 @@ shinyUI(pageWithSidebar(
     uiOutput('visitnos'),
     uiOutput('tcellsubs'),
     
-    actionButton("run","Update with filtered data")
+    actionButton("updateButton","Update with filtered data"),
+    
+    downloadButton('downloadData', 'Download')
     
   ),
   
@@ -24,16 +26,15 @@ shinyUI(pageWithSidebar(
                plotOutput("plot")
       ),
       tabPanel('FDR',
-               #                dataTableOutput('countsdata'),
                sliderInput("threshold", "Threshold:", 
-                           min = 0, max = 1, value = 0.1, step= 0.05),
+                           min = 0, max = 1, value = 0.1, step= 0.01),
+               radioButtons("adjustment_type", "FDR adjustment: ",
+                            choices = list("Across Subjects" = "across", "Within Subjects" = "within")),
                
                dataTableOutput('dftable'),
                plotOutput('boxplot'),
                uiOutput('xvars1'),
-               uiOutput('xvars2'),
-               uiOutput('yvars1'),
-               uiOutput('yvars2')
+               uiOutput('yvars1')
   
       ),
       tabPanel('Debug',
