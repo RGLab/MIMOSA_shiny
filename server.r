@@ -5,17 +5,20 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(data=NULL,antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+rvalues<-reactiveValues(buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
 rvdata_varnames = c("antigen", "cytokine", "tcellsub", "visitno")
 #hardcoded columns?
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 #selected facet_vars
-facet_vars <- list(x1 = NULL, y1 = NULL, x2 = NULL, y2 = NULL)
+facet_vars <- list(x1 = NULL, y1 = NULL)
 measure.columns=c("nsub","cytnum")
 default.cast.formula=component~assayid+ptid+visitno+tcellsub+cytokine+antigen
 .variable=quote(.(assayid,ptid,visitno,tcellsub,cytokine,antigen))
 featureCols=1
 ref.append.replace="_neg"
+
+
+
 
 
 shinyServer(function(input, output) {
@@ -43,7 +46,80 @@ shinyServer(function(input, output) {
                                                .variables = .variable,
                                                featureCols=featureCols,
                                                ref.append.replace = ref.append.replace)
-    rvalues$result<-MIMOSA(data = rvalues$eset,formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub,method="EM",subset=RefTreat%in%"Treatment"&antigen%in%"CMV"&cytokine%in%"IL2+"&visitno%in%"10",ref=RefTreat%in%"Reference"&antigen%in%"CMV"&cytokine%in%"IL2+"&visitno%in%"10")
+    #TAKES A SUBSET
+    if(input$updateButton > rvalues$buttonval){
+      if(length(input$antigens) != 0){
+        browser()
+        rvalues$buttonval = rvalues$buttonval + 1
+        thisCall <- quote(MIMOSA(data = rvalues$eset,
+                                 formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub
+                                 ,method = "EM"
+                                 ,subset = dummytobereassigned
+                                 ,ref = dummytobereassigned))
+        if(input$antigens!= "-----" & input$cytokines != "-----" & input$visitnos != "-----"){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))        
+          
+        }
+        else if(input$antigens!= "-----" & input$cytokines == input$visitnos){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens))        
+        }
+        
+        else if(input$cytokines != "-----" & input$antigens == input$visitnos){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines))        
+        }
+        
+        else if(input$visitnos != "-----" & input$antigens == input$cytokines){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&visitno%in%.(input$visitnos))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&visitno%in%.(input$visitnos))          
+        }
+        
+        else if(input$antigens == "-----"){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))            
+        }
+        
+        else if(input$cytokines == "-----"){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos))        
+        }
+        
+        else if(input$visitnos == "-----"){
+          thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))        
+        }
+        
+        #PROBLEM
+        else{
+          thisCall <- quote(MIMOSA(data = rvalues$eset,
+                                   formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub
+                                   ,method = "EM"))
+        }
+        rvalues$result <- eval(thisCall)
+      }
+      output$plot<-renderPlot({
+        if(!is.null(rvalues$result)){
+          browser()
+          volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var=~tcellsub)
+        }
+      })
+    }
+    
+    
+  })
+  
+  observe({
+    if(!is.null(rvalues$result)){
+      x<- rvalues$result
+      q <- -log10(unlist(fdr(x), use.names = FALSE))
+      pspu <- countsTable(x, proportion = TRUE)
+      p.stim <- getZ(x)
+      pd <- pData(x)
+      rvalues$fdrtable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
+      rvalues$fdrtable
+    }
   })
   
   #filter data based on dropdown input and print to table
@@ -164,13 +240,13 @@ shinyServer(function(input, output) {
   observe({
     output$xvars1<-renderUI({
       x1choices <- setdiff(rvdata_varnames, input$yvars1)
-      selectInput('xvars1', 'X variable', c(".", x1choices), selected = c(".", input$xvars1), multiple = TRUE)
+      selectInput('xvars1', 'Faceting X axis', c(".", x1choices), selected = c(".", input$xvars1), multiple = TRUE)
     })
   })
   observe({
     output$yvars1<-renderUI({
       y1choices <- setdiff(rvdata_varnames, input$xvars1)
-      selectInput('yvars1', 'Y variable', c( ".", y1choices), selected = c(".", input$yvars1), multiple = TRUE)
+      selectInput('yvars1', 'Faceting Y axis', c( ".", y1choices), selected = c(".", input$yvars1), multiple = TRUE)
     })
   })
   
@@ -185,32 +261,17 @@ shinyServer(function(input, output) {
   
   #rendering volcanoplot below data table
   observe({
-    output$plot<-renderPlot({
-      if(!is.null(rvalues$result)){
-        volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var=~tcellsub)
-      }
-    })
+    #volcanoplot was here
     
     output$dftable<-renderDataTable({
       if(!is.null(rvalues$result) & !is.null(rvalues$threshold)){
-        x<- rvalues$result
-        q <- -log10(unlist(fdr(x), use.names = FALSE))
-        pspu <- countsTable(x, proportion = TRUE)
-        p.stim <- getZ(x)
-        pd <- pData(x)
-        fdrtable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
-        fdrtable
+        rvalues$fdrtable
       }
     })
     
     output$boxplot<- renderPlot({
       if(!is.null(rvalues$result)){
-        x<- rvalues$result
-        q <- -log10(unlist(fdr(x), use.names = FALSE))
-        pspu <- countsTable(x, proportion = TRUE)
-        p.stim <- getZ(x)
-        pd <- pData(x)
-        plottable <-data.table(signif = q > -log10(input$threshold),q, pspu, p.stim, pd)
+        plottable <- rvalues$fdrtable
         
         
         
@@ -228,12 +289,12 @@ shinyServer(function(input, output) {
         }
         
         
-          if(length(input$xvars1) != 1 & length(input$yvars1) == 1){
+        if(length(input$xvars1) != 1 & length(input$yvars1) == 1){
           facetformula<- as.formula(paste(". ~", addplus(input$xvars1)))
           
           p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
           return(p)
-          }
+        }
         if(length(input$xvars1) != 1 & length(input$yvars1) != 1){
           facetformula<- as.formula(paste(addplus(input$yvars1), " ~", addplus(input$xvars1)))
           
@@ -246,11 +307,18 @@ shinyServer(function(input, output) {
           p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
           return(p)
         }
-          
-          
+        
+        
         p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr))
         p
       }
     })
+    
+    output$downloadData <- downloadHandler(
+      filename = function() { paste(data, '.csv', sep='') },
+      content = function(file) {
+        write.csv(rvalues$fdrtable, file)
+      }
+    )
   })
 })
