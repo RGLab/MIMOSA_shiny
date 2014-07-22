@@ -14,7 +14,13 @@ shinyUI(pageWithSidebar(
     
     actionButton("updateButton","Update with filtered data"),
     
+    radioButtons("method", "FDR Method: ",
+                 choices = list("Expectation Maximization" = "EM", "Markov Chain Monte-Carlo" = "mcmc")
+                 , selected = "EM"),
+    
     downloadButton('downloadData', 'Download')
+    
+    
     
   ),
   
@@ -23,19 +29,21 @@ shinyUI(pageWithSidebar(
       tabPanel('Data',
                dataTableOutput('data'),
                textOutput("selected"),
-               plotOutput("plot")
+               plotOutput("plot"),
+               uiOutput('vplotx'),
+               uiOutput('vploty')
       ),
       tabPanel('FDR',
                sliderInput("threshold", "Threshold:", 
                            min = 0, max = 1, value = 0.1, step= 0.01),
-               radioButtons("adjustment_type", "FDR adjustment: ",
-                            choices = list("Across Subjects" = "across", "Within Subjects" = "within")),
-               
                dataTableOutput('dftable'),
+               radioButtons("adjustment_type", "FDR adjustment: ",
+                            choices = list("Across Subjects" = "across", "Within Subjects" = "within")
+                            , selected = "across"),
                plotOutput('boxplot'),
                uiOutput('xvars1'),
                uiOutput('yvars1')
-  
+               
       ),
       tabPanel('Debug',
                textOutput("debugtext")
