@@ -111,18 +111,19 @@ shinyServer(function(input, output) {
       
       p.stim <- getZ(x)
       pd <- pData(x)
-      acrossdata <-data.table(signif = q < (input$threshold),q, pspu, p.stim, pd)
+      acrossdata <-data.table(across_signif = q < (input$threshold),q, pspu, p.stim, pd)
       
       withindata<- ddply(acrossdata, .(ptid, cytokine, tcellsub, visitno), withinfunction<-function(x){
-        withinframe <- data.frame(fdr_within = with(x,MIMOSA:::fdr.matrix(cbind(Pr.Nonresponse, Pr.response))), stimulation = x$antigen)
+        withinframe <- data.frame(fdr_within = with(x,MIMOSA:::fdr.matrix(cbind(Pr.Nonresponse, Pr.response))))
       })
-     withindata <- data.table(withindata)
-     setkeyv(acrossdata, c("ptid", "tcellsub", "cytokine", "visitno"))
-     rvalues$fdrtable <- merge(acrossdata, withindata)
-
+      within_signif <- withindata$fdr_within < (input$threshold)
+      withindata <- data.table(within_signif, withindata)
+      setkeyv(acrossdata, c("ptid", "tcellsub", "cytokine", "visitno"))
+      rvalues$fdrtable <- merge(acrossdata, withindata)
       
-     
-
+      
+      
+      
     }
   })
   
@@ -333,25 +334,42 @@ shinyServer(function(input, output) {
         
         if(length(input$xvars1) != 1 & length(input$yvars1) == 1){
           facetformula<- as.formula(paste(". ~", addplus(input$xvars1)))
-          
-          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          if(input$adjustment_type == "across"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+          }
+          if(input$adjustment_type == "within"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+          }
           return(p)
         }
         if(length(input$xvars1) != 1 & length(input$yvars1) != 1){
           facetformula<- as.formula(paste(addplus(input$yvars1), " ~", addplus(input$xvars1)))
-          
-          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          if(input$adjustment_type == "across"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+          }
+          if(input$adjustment_type == "within"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+          }
           return(p)
         }
         if(length(input$xvars1)==1 & length(input$yvars1) != 1){
           facetformula<- as.formula(paste(addplus(input$yvars1), " ~ ."))
-          
-          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr)) + facet_grid(facetformula)
+          if(input$adjustment_type == "across"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+          }
+          if(input$adjustment_type == "within"){
+            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+          }
           return(p)
         }
         
         
-        p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, signif.fdr))  + geom_jitter(aes(colour = signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = signif.fdr))
+        if(input$adjustment_type == "across"){
+          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr))
+        }
+        if(input$adjustment_type == "within"){
+          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif))
+        }
         p
       }
     })
