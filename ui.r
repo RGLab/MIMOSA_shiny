@@ -12,6 +12,14 @@ shinyUI(pageWithSidebar(
     uiOutput('visitnos'),
     uiOutput('tcellsubs'),
     
+    checkboxInput("aggregate_on", "Aggregate antigens: ", value = FALSE),
+    
+    uiOutput('aggregate'),
+    
+    uiOutput('aggregatename'),
+    
+    actionButton("aggregateupdate", "Aggregate"),
+    
     actionButton("updateButton","Update with filtered data"),
     
     radioButtons("method", "FDR Method: ",
