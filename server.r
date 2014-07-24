@@ -5,9 +5,8 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+rvalues<-reactiveValues(aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
 rvdata_varnames = c("antigen", "cytokine", "tcellsub", "visitno")
-#hardcoded columns?
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 #selected facet_vars
 facet_vars <- list(x1 = NULL, y1 = NULL)
@@ -98,10 +97,44 @@ shinyServer(function(input, output) {
       }
       rvalues$result <- eval(thisCall)
     }
-    
-    
-    
   })
+  
+  #output aggregating options if aggregating is turned on
+  observe({
+    if(input$aggregate_on & !is.null(rvalues$data)){
+      output$aggregate<-renderUI({
+        selectInput('aggregate', 'Antigen group 1', rvalues$antigens , multiple = TRUE)
+      })
+    }
+  })
+  observe({
+    if(input$aggregate_on & !is.null(rvalues$data)){
+      output$aggregatename<-renderUI({
+        textInput('aggregatename', 'Group 1 name: ', value = input$aggregatename)
+      })
+    }
+  })
+  
+  #write over chosen aggregate, delete past antigens
+  observe({
+    if(input$aggregate_on & !is.null(rvalues$data)){
+      if(input$aggregateupdate > rvalues$aggregatebuttonval){
+        rvalues$aggregatebuttonval = rvalues$aggregatebuttonval + 1
+        levels(rvalues$data$antigen) <- c(levels(rvalues$data$antigen), input$aggregatename)
+        rvalues$data$antigen[rvalues$data$antigen %in% input$aggregate] <- input$aggregatename
+        rvalues$data <- droplevels(rvalues$data)
+        rvalues$data$antigen <- factor(rvalues$data$antigen)
+      }
+    }
+  })
+  
+  
+  
+  
+  
+  
+  
+  #generate fdrtable
   
   observe({
     if(!is.null(rvalues$result)){
@@ -260,7 +293,7 @@ shinyServer(function(input, output) {
     })
   })
   
-  
+  #display faceting options for fdr boxplot
   observe({
     output$xvars1<-renderUI({
       x1choices <- setdiff(rvdata_varnames, input$yvars1)
@@ -311,23 +344,22 @@ shinyServer(function(input, output) {
         }
         if(length(input$vplotx)==1 & length(input$vploty) != 1){
           vplotfacetformula<- as.formula(paste(addplus(input$vploty), " ~ ."))
-          
-          
         }
         else if(length(input$vplotx) == 1 & length(input$vploty) == 1){
           vplotfacetformula <- NA
         }
-        
         volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var= vplotfacetformula)
       }
     })
     
+    #display fdrtable
     output$dftable<-renderDataTable({
       if(!is.null(rvalues$result) & !is.null(rvalues$threshold)){
         rvalues$fdrtable
       }
     })
     
+    #display fdr boxplot
     output$boxplot<- renderPlot({
       if(!is.null(rvalues$result)){
         plottable <- rvalues$fdrtable   
@@ -373,6 +405,8 @@ shinyServer(function(input, output) {
         p
       }
     })
+    
+    
     
     output$downloadData <- downloadHandler(
       filename = function() { paste(data, '.csv', sep='') },
