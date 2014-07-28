@@ -408,9 +408,10 @@ shinyServer(function(input, output) {
     
     
     
-    output$downloadData <- downloadHandler(
-      filename = function() { paste(data, '.csv', sep='') },
+   output$downloadData <- downloadHandler(
+      filename = function() { paste('data', '.csv', sep='') },
       content = function(file) {
+        
         write.csv(rvalues$fdrtable, file)
       }
     )
