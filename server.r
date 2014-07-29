@@ -5,7 +5,7 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+rvalues<-reactiveValues(p = NULL,thisdata = NULL, aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
 rvdata_varnames = c("antigen", "cytokine", "tcellsub", "visitno")
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 #selected facet_vars
@@ -34,14 +34,22 @@ shinyServer(function(input, output) {
     D[,visitno:=factor(visitno)]
     D[,ptid:=factor(ptid)]
     rvalues$data<-D[,showColumns,with=FALSE]
-    thisdata = data.frame(D)
-    rvalues$eset<-ConstructMIMOSAExpressionSet(thisdata,
+    rvalues$thisdata = data.frame(D)
+  })
+  observe({
+    
+    if(is.null(file())){
+      return(NULL)
+    }
+    
+    rvalues$eset<-ConstructMIMOSAExpressionSet(rvalues$thisdata,
                                                reference = NULL,
                                                measure.columns = measure.columns,
                                                default.cast.formula=default.cast.formula,
                                                .variables = .variable,
                                                featureCols=featureCols,
                                                ref.append.replace = ref.append.replace)
+    
     #TAKES A SUBSET
     if(input$updateButton > rvalues$buttonval){
       if(length(input$antigens) != 0){
@@ -103,14 +111,14 @@ shinyServer(function(input, output) {
   observe({
     if(input$aggregate_on & !is.null(rvalues$data)){
       output$aggregate<-renderUI({
-        selectInput('aggregate', 'Antigen group 1', rvalues$antigens , multiple = TRUE)
+        selectInput('aggregate', 'Antigen group: ', rvalues$antigens , multiple = TRUE)
       })
     }
   })
   observe({
     if(input$aggregate_on & !is.null(rvalues$data)){
       output$aggregatename<-renderUI({
-        textInput('aggregatename', 'Group 1 name: ', value = input$aggregatename)
+        textInput('aggregatename', 'Group name: ', value = input$aggregatename)
       })
     }
   })
@@ -120,10 +128,37 @@ shinyServer(function(input, output) {
     if(input$aggregate_on & !is.null(rvalues$data)){
       if(input$aggregateupdate > rvalues$aggregatebuttonval){
         rvalues$aggregatebuttonval = rvalues$aggregatebuttonval + 1
-        levels(rvalues$data$antigen) <- c(levels(rvalues$data$antigen), input$aggregatename)
-        rvalues$data$antigen[rvalues$data$antigen %in% input$aggregate] <- input$aggregatename
-        rvalues$data <- droplevels(rvalues$data)
-        rvalues$data$antigen <- factor(rvalues$data$antigen)
+        #browser()
+        #         levels(rvalues$data$antigen) <- c(levels(rvalues$data$antigen), input$aggregatename)
+        #         rvalues$data$antigen[rvalues$data$antigen %in% input$aggregate] <- input$aggregatename
+        #         #rvalues$thisdata$antigen[rvalues$thisdata$antigen %in% input$aggregate] <- input$aggregatename
+        #         #browser()
+        #         rvalues$data <- droplevels(rvalues$data)
+        #         #rvalues$data$antigen <- factor(rvalues$data$antigen)
+        #        # levels(rvalues$thisdata$antigen) <- c(levels(rvalues$thisdata$antigen), input$aggregatename)
+        #        # rvalues$thisdata$antigen[rvalues$thisdata$antigen %in% input$aggregate] <- input$aggregatename
+        #         rvalues$thisdata <- droplevels(rvalues$thisdata)
+        #         #rvalues$thisdata$antigen <- factor(rvalues$thisdata$antigen)
+        #         #browser()
+        #        
+        # #        withindata<- ddply(acrossdata, .(ptid, cytokine, tcellsub, visitno), withinfunction<-function(x){
+        # #          withinframe <- data.frame(fdr_within = with(x,MIMOSA:::fdr.matrix(cbind(Pr.Nonresponse, Pr.response))))
+        # #        })
+        selecteddata <- rvalues$data[rvalues$data$antigen %in% input$aggregate]
+        aggregatedata <- ddply(selecteddata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
+          cbind(input$aggregatename, sum(as.numeric(as.character(x$cytnum))), sum(as.numeric(as.character(x$nsub))), x$n_antigen, sum(as.numeric(as.character(x$cytnum_neg))), sum(as.numeric(as.character(x$nsub_neg))))
+        })
+        colnames(aggregatedata) <- colnames(rvalues$data)
+        rvalues$data <- rbind(rvalues$data, aggregatedata)
+       #browser()
+#         ## HOW ABOUT THISDATA?
+#         selectedthisdata <- rvalues$thisdata[rvalues$thisdata$antigen %in% input$aggregate]
+#         aggregatethisdata <- ddply(selectedthisdata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
+#           cbind(input$aggregatename, sum)
+#         })
+        #rvalues$thisdata <- rbind(rvalues$thisdata, aggr)
+        
+        
       }
     }
   })
@@ -367,51 +402,63 @@ shinyServer(function(input, output) {
         if(length(input$xvars1) != 1 & length(input$yvars1) == 1){
           facetformula<- as.formula(paste(". ~", addplus(input$xvars1)))
           if(input$adjustment_type == "across"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
           }
           if(input$adjustment_type == "within"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
           }
-          return(p)
+          return(rvalues$p)
         }
         if(length(input$xvars1) != 1 & length(input$yvars1) != 1){
           facetformula<- as.formula(paste(addplus(input$yvars1), " ~", addplus(input$xvars1)))
           if(input$adjustment_type == "across"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
           }
           if(input$adjustment_type == "within"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
           }
-          return(p)
+          return(rvalues$p)
         }
         if(length(input$xvars1)==1 & length(input$yvars1) != 1){
           facetformula<- as.formula(paste(addplus(input$yvars1), " ~ ."))
           if(input$adjustment_type == "across"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr)) + facet_grid(facetformula)
           }
           if(input$adjustment_type == "within"){
-            p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
+            rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif)) + facet_grid(facetformula)
           }
-          return(p)
+          return(rvalues$p)
         }
         
         
         if(input$adjustment_type == "across"){
-          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr))
+          rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, across_signif.fdr))  + geom_jitter(aes(colour = across_signif.fdr)) + scale_y_log10() + geom_point(data = plottable, aes(colour = across_signif.fdr))
         }
         if(input$adjustment_type == "within"){
-          p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif))
+          rvalues$p<- ggplot(plottable, aes(visitno,cytnum-cytnum_REF)) + geom_boxplot(aes(visitno, cytnum - cytnum_REF), data = subset(plottable, within_signif))  + geom_jitter(aes(colour = within_signif)) + scale_y_log10() + geom_point(data = plottable, aes(colour = within_signif))
         }
-        p
+        rvalues$p
       }
     })
     
-    
-    
-   output$downloadData <- downloadHandler(
-      filename = function() { paste('data', '.csv', sep='') },
+    output$downloadDataTable <- downloadHandler(
+      filename = function() { paste('datatable', '.csv', sep='') },
       content = function(file) {
-        
+        write.csv(rvalues$data, file)
+      }
+    )
+    
+    output$downloadFDRPlot <- downloadHandler(
+      filename = function() { paste("FDRplot", '.png', sep='') },
+      content = function(file) {
+        png(file)
+        print(rvalues$p)
+        dev.off()
+      })
+    
+    output$downloadfdrtable <- downloadHandler(
+      filename = function() { paste('fdrtable', '.csv', sep='') },
+      content = function(file) {
         write.csv(rvalues$fdrtable, file)
       }
     )
