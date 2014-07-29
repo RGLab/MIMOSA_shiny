@@ -24,9 +24,9 @@ shinyUI(pageWithSidebar(
     
     radioButtons("method", "FDR Method: ",
                  choices = list("Expectation Maximization" = "EM", "Markov Chain Monte-Carlo" = "mcmc")
-                 , selected = "EM"),
+                 , selected = "EM")
     
-    downloadButton('downloadData', 'Download')
+   
     
     
     
@@ -43,12 +43,14 @@ shinyUI(pageWithSidebar(
       ),
       tabPanel('FDR',
                sliderInput("threshold", "Threshold:", 
-                           min = 0, max = 1, value = 0.1, step= 0.01),
+                           min = 0, max = 0.5, value = 0.1, step= 0.01),
                dataTableOutput('dftable'),
+               downloadLink('downloadfdrtable', 'Download FDR Table'),
                radioButtons("adjustment_type", "FDR adjustment: ",
                             choices = list("Across Subjects" = "across", "Within Subjects" = "within")
                             , selected = "across"),
                plotOutput('boxplot'),
+               downloadLink('downloadFDRplot', 'Download FDR boxplot'),
                uiOutput('xvars1'),
                uiOutput('yvars1')
                
