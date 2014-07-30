@@ -149,7 +149,24 @@ shinyServer(function(input, output) {
           cbind(input$aggregatename, sum(as.numeric(as.character(x$cytnum))), sum(as.numeric(as.character(x$nsub))), x$n_antigen, sum(as.numeric(as.character(x$cytnum_neg))), sum(as.numeric(as.character(x$nsub_neg))))
         })
         colnames(aggregatedata) <- colnames(rvalues$data)
-        rvalues$data <- rbind(rvalues$data, aggregatedata)
+        rvalues$data <- rbind(rvalues$data, unique(aggregatedata))
+        
+        
+        
+  
+        selecteddata <- rvalues$thisdata[rvalues$thisdata$antigen %in% input$aggregate,]
+        aggregatethisdata <- ddply(selecteddata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
+          cbind(input$aggregatename
+                , sum(as.numeric(as.character(x$cytnum)))
+                , sum(as.numeric(as.character(x$nsub)))
+                , x$n_antigen
+                ,sum(as.numeric(as.character(x$cytnum_neg)))
+                , sum(as.numeric(as.character(x$nsub_neg)))
+                )
+        })
+        colnames(aggregatethisdata) <- c("assayid", "ptid", "visitno", "tcellsub", "cytokine", "antigen", "cytnum", "nsub", "n_antigen", "cytnum_neg", "nsub_neg")
+        rvalues$thisdata <- rbind.fill(rvalues$thisdata, unique(aggregatethisdata))
+
        #browser()
 #         ## HOW ABOUT THISDATA?
 #         selectedthisdata <- rvalues$thisdata[rvalues$thisdata$antigen %in% input$aggregate]
@@ -187,7 +204,7 @@ shinyServer(function(input, output) {
       within_signif <- withindata$fdr_within < (input$threshold)
       withindata <- data.table(within_signif, withindata)
       setkeyv(acrossdata, c("ptid", "tcellsub", "cytokine", "visitno"))
-      rvalues$fdrtable <- merge(acrossdata, withindata)
+      rvalues$fdrtable <- merge(acrossdata, withindata, allow.cartesion = TRUE)
       
       
       
