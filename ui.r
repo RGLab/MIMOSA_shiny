@@ -1,5 +1,23 @@
 require(shiny)
 require(MIMOSA)
+
+loadingBar <- tags$div(class="progress progress-striped active",
+                       tags$div(class="bar", style="width: 100%;"))
+# Code for loading message
+loadingMsg <- tags$div(class="modal", tabindex="-1", role="dialog", 
+                       "aria-labelledby"="myModalLabel", "aria-hidden"="true",
+                       tags$div(class="modal-header",
+                                tags$h3(id="myModalHeader", "Working...")),
+                       tags$div(class="modal-footer",
+                                loadingBar))
+# The conditional panel to show when shiny is busy
+loadingPanel <- conditionalPanel(paste("input.updateButton > 0 && $('html').hasClass('shiny-busy')"),
+                                 loadingMsg)
+
+
+
+
+
 shinyUI(pageWithSidebar(
   
   # Application title
@@ -36,8 +54,10 @@ shinyUI(pageWithSidebar(
     tabsetPanel(
       tabPanel('Data',
                dataTableOutput('data'),
+               loadingPanel,
                textOutput("selected"),
                plotOutput("plot"),
+               downloadLink('downloadvplot', 'Download Volcano Plot'),
                uiOutput('vplotx'),
                uiOutput('vploty')
       ),
