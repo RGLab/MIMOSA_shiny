@@ -5,7 +5,7 @@ require(ggplot2)
 require(data.table)
 
 #set rvalues to null initially
-rvalues<-reactiveValues(p = NULL,thisdata = NULL, aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
+rvalues<-reactiveValues(running = FALSE, p = NULL,thisdata = NULL, aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
 rvdata_varnames = c("antigen", "cytokine", "tcellsub", "visitno")
 showColumns<-c("assayid","ptid","visitno","tcellsub","cytokine","antigen","cytnum","nsub","n_antigen","cytnum_neg","nsub_neg")
 #selected facet_vars
@@ -15,7 +15,6 @@ default.cast.formula=component~assayid+ptid+visitno+tcellsub+cytokine+antigen
 .variable=quote(.(assayid,ptid,visitno,tcellsub,cytokine,antigen))
 featureCols=1
 ref.append.replace="_neg"
-
 
 shinyServer(function(input, output) {
   file=reactive({
@@ -52,8 +51,10 @@ shinyServer(function(input, output) {
     
     #TAKES A SUBSET
     if(input$updateButton > rvalues$buttonval){
+      browseVignettes("MIMOSA")
       if(length(input$antigens) != 0){
         rvalues$buttonval = rvalues$buttonval + 1
+        browser()
         thisCall <- quote(MIMOSA(data = rvalues$eset,
                                  formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub
                                  ,method = "EM"
@@ -99,7 +100,6 @@ shinyServer(function(input, output) {
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))
           thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))        
         }
-        
         thisCall["method"]<- bquote(.(input$method))
         #include t-cell subsetting
       }
@@ -128,22 +128,7 @@ shinyServer(function(input, output) {
     if(input$aggregate_on & !is.null(rvalues$data)){
       if(input$aggregateupdate > rvalues$aggregatebuttonval){
         rvalues$aggregatebuttonval = rvalues$aggregatebuttonval + 1
-        #browser()
-        #         levels(rvalues$data$antigen) <- c(levels(rvalues$data$antigen), input$aggregatename)
-        #         rvalues$data$antigen[rvalues$data$antigen %in% input$aggregate] <- input$aggregatename
-        #         #rvalues$thisdata$antigen[rvalues$thisdata$antigen %in% input$aggregate] <- input$aggregatename
-        #         #browser()
-        #         rvalues$data <- droplevels(rvalues$data)
-        #         #rvalues$data$antigen <- factor(rvalues$data$antigen)
-        #        # levels(rvalues$thisdata$antigen) <- c(levels(rvalues$thisdata$antigen), input$aggregatename)
-        #        # rvalues$thisdata$antigen[rvalues$thisdata$antigen %in% input$aggregate] <- input$aggregatename
-        #         rvalues$thisdata <- droplevels(rvalues$thisdata)
-        #         #rvalues$thisdata$antigen <- factor(rvalues$thisdata$antigen)
-        #         #browser()
-        #        
-        # #        withindata<- ddply(acrossdata, .(ptid, cytokine, tcellsub, visitno), withinfunction<-function(x){
-        # #          withinframe <- data.frame(fdr_within = with(x,MIMOSA:::fdr.matrix(cbind(Pr.Nonresponse, Pr.response))))
-        # #        })
+
         selecteddata <- rvalues$data[rvalues$data$antigen %in% input$aggregate]
         aggregatedata <- ddply(selecteddata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
           cbind(input$aggregatename, sum(as.numeric(as.character(x$cytnum))), sum(as.numeric(as.character(x$nsub))), x$n_antigen, sum(as.numeric(as.character(x$cytnum_neg))), sum(as.numeric(as.character(x$nsub_neg))))
@@ -151,9 +136,6 @@ shinyServer(function(input, output) {
         colnames(aggregatedata) <- colnames(rvalues$data)
         rvalues$data <- rbind(rvalues$data, unique(aggregatedata))
         
-        
-        
-  
         selecteddata <- rvalues$thisdata[rvalues$thisdata$antigen %in% input$aggregate,]
         aggregatethisdata <- ddply(selecteddata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
           cbind(input$aggregatename
@@ -162,29 +144,13 @@ shinyServer(function(input, output) {
                 , x$n_antigen
                 ,sum(as.numeric(as.character(x$cytnum_neg)))
                 , sum(as.numeric(as.character(x$nsub_neg)))
-                )
+          )
         })
         colnames(aggregatethisdata) <- c("assayid", "ptid", "visitno", "tcellsub", "cytokine", "antigen", "cytnum", "nsub", "n_antigen", "cytnum_neg", "nsub_neg")
         rvalues$thisdata <- rbind.fill(rvalues$thisdata, unique(aggregatethisdata))
-
-       #browser()
-#         ## HOW ABOUT THISDATA?
-#         selectedthisdata <- rvalues$thisdata[rvalues$thisdata$antigen %in% input$aggregate]
-#         aggregatethisdata <- ddply(selectedthisdata, .(assayid, ptid, visitno, tcellsub, cytokine), aggregatefunction <- function(x){
-#           cbind(input$aggregatename, sum)
-#         })
-        #rvalues$thisdata <- rbind(rvalues$thisdata, aggr)
-        
-        
       }
     }
   })
-  
-  
-  
-  
-  
-  
   
   #generate fdrtable
   
@@ -205,14 +171,8 @@ shinyServer(function(input, output) {
       withindata <- data.table(within_signif, withindata)
       setkeyv(acrossdata, c("ptid", "tcellsub", "cytokine", "visitno"))
       rvalues$fdrtable <- merge(acrossdata, withindata, allow.cartesion = TRUE)
-      
-      
-      
-      
     }
   })
-  
-  
   
   #Faceting options for VolcanoPlot
   observe({
@@ -227,10 +187,6 @@ shinyServer(function(input, output) {
       selectInput('vploty', 'Faceting Y axis', c( ".", ychoices), selected = c(".", input$vploty), multiple = TRUE)
     })
   })
-  
-  
-  
-  
   
   #filter data based on dropdown input and print to table
   output$data = renderDataTable({
@@ -359,7 +315,6 @@ shinyServer(function(input, output) {
     })
   })
   
-  
   #printing to debug tab
   output$debugtext<-renderPrint({
     if(is.null(file())){
@@ -400,7 +355,8 @@ shinyServer(function(input, output) {
         else if(length(input$vplotx) == 1 & length(input$vploty) == 1){
           vplotfacetformula <- NA
         }
-        volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var= vplotfacetformula)
+        volcanoplot <- volcanoPlot(rvalues$result,cytnum-cytnum_REF,facet_var= vplotfacetformula)
+        volcanoplot
       }
     })
     
@@ -470,6 +426,14 @@ shinyServer(function(input, output) {
       content = function(file) {
         png(file)
         print(rvalues$p)
+        dev.off()
+      })
+    
+    output$downloadvplot <- downloadHandler(
+      filename = function() { paste("Volcanoplot", '.png', sep='') },
+      content = function(file) {
+        png(file)
+        print(volcanoplot)
         dev.off()
       })
     
