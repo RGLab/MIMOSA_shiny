@@ -3,6 +3,8 @@ require(shiny)
 require(MIMOSA)
 require(ggplot2)
 require(data.table)
+options(shiny.maxRequestSize=30*1024^2)
+
 
 #set rvalues to null initially
 rvalues<-reactiveValues(running = FALSE, p = NULL,thisdata = NULL, aggregatebuttonval = 0, buttonval = 0, data=NULL,fdrtable = NULL, antigens=NULL,cytokines = NULL, visitnos = NULL, tcellsubs = NULL, xvars = NULL, yvars = NULL, threshold = 0.01, colclasses=NULL,eset=NULL,result=NULL)
