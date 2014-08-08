@@ -56,7 +56,7 @@ shinyServer(function(input, output) {
       browseVignettes("MIMOSA")
       if(length(input$antigens) != 0){
         rvalues$buttonval = rvalues$buttonval + 1
-        browser()
+    
         thisCall <- quote(MIMOSA(data = rvalues$eset,
                                  formula = nsub+cytnum~ptid+antigen+RefTreat|cytokine+visitno+tcellsub
                                  ,method = "EM"
@@ -71,37 +71,67 @@ shinyServer(function(input, output) {
         else if(input$antigens!= "-----" & input$cytokines != "-----" & input$visitnos != "-----"){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))
           thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))        
-          
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))        
+            
+          }
         }
         else if(input$antigens!= "-----" & input$cytokines == input$visitnos){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens))        
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens))     
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens)&tcellsub%in%.(input$tcellsubs))   
+          }
         }
         
         else if(input$cytokines != "-----" & input$antigens == input$visitnos){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines))        
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines))      
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines)&tcellsub%in%.(input$tcellsubs))        
+          }
         }
         
         else if(input$visitnos != "-----" & input$antigens == input$cytokines){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&visitno%in%.(input$visitnos))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&visitno%in%.(input$visitnos))          
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&visitno%in%.(input$visitnos)) 
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs)) 
+          }
         }
         
         else if(input$antigens == "-----"){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))            
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos))     
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&cytokine%in%.(input$cytokines)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))   
+          }
         }
         
         else if(input$cytokines == "-----"){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos))        
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos))   
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens)&visitno%in%.(input$visitnos)&tcellsub%in%.(input$tcellsubs))
+          }
         }
         
         else if(input$visitnos == "-----"){
           thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))
-          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))        
+          thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines))  
+          if(input$tcellsubs != "-----"){
+            thisCall[["subset"]] <- bquote(RefTreat%in%"Treatment"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&tcellsub%in%.(input$tcellsubs))
+            thisCall[["ref"]] <- bquote(RefTreat%in%"Reference"&antigen%in% .(input$antigens) &cytokine%in%.(input$cytokines)&tcellsub%in%.(input$tcellsubs))
+          }
         }
+        
+       
         thisCall["method"]<- bquote(.(input$method))
         #include t-cell subsetting
       }
